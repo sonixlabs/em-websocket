@@ -77,4 +77,26 @@ describe "draft06" do
       }
     end
   end
+
+  it "should accept a single-frame binary message" do
+    EM.run do
+      start_server { |server|
+        server.onmessage { |msg, type|
+          msg.should == '\xFF\xFF'
+          type.should == :binary
+          EM.stop
+        }
+        server.onerror {
+          failed
+        }
+      }
+
+      options = { :host => '0.0.0.0', :port => 12345, :debug => false }
+      client = EM.connect('0.0.0.0', 12345, EventMachine::WebSocket::ClientConnection, options) do |ws|
+        ws.onopen do
+          ws.send '\xFF\xFF', :binary
+        end
+      end
+    end
+  end
 end

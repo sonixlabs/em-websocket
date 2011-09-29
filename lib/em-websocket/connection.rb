@@ -12,7 +12,13 @@ module EventMachine
       def onmessage(&blk);  @onmessage = blk; end
 
       def trigger_on_message(msg, type=:text)
-        @onmessage.call(msg) if @onmessage
+        if @onmessage
+          if @onmessage.arity == 2
+            @onmessage.call msg, type
+          else
+            @onmessage.call msg
+          end
+        end
       end
       def trigger_on_open
         @onopen.call if @onopen
@@ -57,7 +63,7 @@ module EventMachine
       def receive_data(data)
         debug [:receive_data, data]
 
-        if @handler and state == :connected
+        if @handler and state != :handshake #TODO a different way to catch client sent handshake, is waiting state
           @handler.receive_data(data)
         else
           dispatch(data)
