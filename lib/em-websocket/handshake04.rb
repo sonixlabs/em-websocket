@@ -30,23 +30,23 @@ module EventMachine
         
         return upgrade.join("\r\n") + "\r\n\r\n"
       end
-    end
 
-    def handshake_client
-      request = ["GET /websocket HTTP/1.1"]
-      request << "Host: #{@request[:host]}:#{@request[:port]}" # TODO: replace with connection ws loc
-      request << "Connection: keep-alive, Upgrade"
-      request << "Sec-WebSocket-Version: 8" # TODO: supply version somehow
-      request << "Sec-WebSocket-Origin: null"
-      request << "Sec-WebSocket-Key: j3aqDbLsk5fH5dqRrTJU8g==" # TODO: figure out from spec what key should be
-      request << "Upgrade: websocket"
-      # TODO: anything else needed?  nothing else parsed anyway
-      return request.join("\r\n") + "\r\n\r\n"
-    end
+      def handshake_client
+        request = ["GET /websocket HTTP/1.1"]
+        request << "Host: #{@request[:host]}:#{@request[:port]}" # TODO: replace with connection ws loc
+        request << "Connection: keep-alive, Upgrade"
+        request << "Sec-WebSocket-Version: 8" # TODO: supply version somehow
+        request << "Sec-WebSocket-Origin: null"
+        request << "Sec-WebSocket-Key: j3aqDbLsk5fH5dqRrTJU8g==" # TODO: figure out from spec what key should be
+        request << "Upgrade: websocket"
+        # TODO: anything else needed?  nothing else parsed anyway
+        return request.join("\r\n") + "\r\n\r\n"
+      end
 
-    def client_handle_server_handshake_response(data)
-      @state = :connected #TODO - some actual logic would be nice
-      @connection.trigger_on_open
+      def client_handle_server_handshake_response(data)
+        @state = :connected #TODO - some actual logic would be nice
+        @connection.trigger_on_open
+      end
     end
   end
 end

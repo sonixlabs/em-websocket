@@ -3,7 +3,7 @@ $:.unshift(File.dirname(__FILE__) + '/../lib')
 require "eventmachine"
 
 %w[
-  debugger websocket connection
+  debugger websocket connection client_connection
   handshake75 handshake76 handshake04
   framing76 framing03 framing04 framing05 framing07
   close75 close03 close05 close06
