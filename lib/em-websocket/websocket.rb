@@ -13,8 +13,8 @@ module EventMachine
       EM.epoll
       EM.run do
 
-        trap("TERM") { stop; raise "TERM" }
-        trap("INT")  { stop; raise "INT" }
+        #trap("TERM") { stop; }
+        #trap("INT") { stop; }
 
         EventMachine::start_server(options[:host], options[:port],
           EventMachine::WebSocket::Connection, options) do |c|
@@ -27,8 +27,8 @@ module EventMachine
       EM.epoll
       EM.run do
 
-        trap("TERM") { stop; raise "TERM" }
-        trap("INT")  { stop; raise "INT" }
+        #trap("TERM") { stop; raise "TERM" }
+        #trap("INT")  { stop; raise "INT" }
 
         EM.connect(options[:host], options[:port],
           EventMachine::WebSocket::ClientConnection, options) do |c|
