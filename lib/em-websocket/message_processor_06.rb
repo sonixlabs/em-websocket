@@ -41,9 +41,9 @@ module EventMachine
           if application_data.respond_to?(:force_encoding)
             application_data.force_encoding("UTF-8")
           end
-          @connection.trigger_on_message(application_data)
+          @connection.trigger_on_message(application_data, :text)
         when :binary
-          @connection.trigger_on_message(application_data)
+          @connection.trigger_on_message(application_data, :binary)
         end
       end
     end

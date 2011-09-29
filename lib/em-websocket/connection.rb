@@ -11,7 +11,7 @@ module EventMachine
       def onerror(&blk);    @onerror = blk;   end
       def onmessage(&blk);  @onmessage = blk; end
 
-      def trigger_on_message(msg)
+      def trigger_on_message(msg, type=:text)
         @onmessage.call(msg) if @onmessage
       end
       def trigger_on_open
@@ -57,7 +57,7 @@ module EventMachine
       def receive_data(data)
         debug [:receive_data, data]
 
-        if @handler
+        if @handler and state == :connected
           @handler.receive_data(data)
         else
           dispatch(data)
@@ -103,7 +103,7 @@ module EventMachine
             return false
           end
           @data = nil
-          @handler.run
+          @handler.run_server
           return true
         end
       end
@@ -119,24 +119,32 @@ module EventMachine
         close_connection_after_writing
       end
 
-      def send(data)
-        # If we're using Ruby 1.9, be pedantic about encodings
-        if data.respond_to?(:force_encoding)
-          # Also accept ascii only data in other encodings for convenience
-          unless (data.encoding == Encoding.find("UTF-8") && data.valid_encoding?) || data.ascii_only?
-            raise WebSocketError, "Data sent to WebSocket must be valid UTF-8 but was #{data.encoding} (valid: #{data.valid_encoding?})"
+      def send(data, type=:text)
+        if type == :text
+          # If we're using Ruby 1.9, be pedantic about encodings
+          if data.respond_to?(:force_encoding)
+            # Also accept ascii only data in other encodings for convenience
+            unless (data.encoding == Encoding.find("UTF-8") && data.valid_encoding?) || data.ascii_only?
+              raise WebSocketError, "Data sent to WebSocket must be valid UTF-8 but was #{data.encoding} (valid: #{data.valid_encoding?})"
+            end
+            # This labels the encoding as binary so that it can be combined with
+            # the BINARY framing
+            data.force_encoding("BINARY")
+          else
+            # TODO: Check that data is valid UTF-8
           end
-          # This labels the encoding as binary so that it can be combined with
-          # the BINARY framing
-          data.force_encoding("BINARY")
-        else
-          # TODO: Check that data is valid UTF-8
-        end
 
-        if @handler
-          @handler.send_text_frame(data)
+          if @handler
+            @handler.send_text_frame(data)
+          else
+            raise WebSocketError, "Cannot send data before onopen callback"
+          end
         else
-          raise WebSocketError, "Cannot send data before onopen callback"
+          if @handler
+            @handler.send_frame(type, data)
+          else
+            raise WebSocketError, "Cannot send data before onopen callback"
+          end
         end
       end
 

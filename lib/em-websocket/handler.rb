@@ -12,14 +12,27 @@ module EventMachine
         initialize_framing
       end
 
-      def run
-        @connection.send_data handshake
+      def run_server
+        @connection.send_data handshake_server
         @state = :connected
         @connection.trigger_on_open
       end
 
+      def run_client
+        @connection.send_data handshake_client
+      end
+
       # Handshake response
       def handshake
+        # Implemented in subclass
+      end
+
+      def handshake_server
+        handshake  #backwards compatibility
+      end
+
+      # Handshake initiation
+      def handshake_client
         # Implemented in subclass
       end
 
