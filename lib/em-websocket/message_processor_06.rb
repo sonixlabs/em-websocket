@@ -37,6 +37,7 @@ module EventMachine
           send_frame(:pong, application_data)
         when :pong
           # TODO: Do something. Complete a deferrable established by a ping?
+          @connection.trigger_on_message(application_data, :pong)
         when :text
           if application_data.respond_to?(:force_encoding)
             application_data.force_encoding("UTF-8")
