@@ -99,4 +99,27 @@ describe "draft06" do
       end
     end
   end
+
+  it "should accept a text message in the same frame as the server handshake response" do
+    EM.run do
+      start_server { |server|
+        server.onopen { server.send 'hello' }
+        server.onerror { failed }
+      }
+      
+      options = { :host => '0.0.0.0', :port => 12345, :debug => false }
+      client = EM.connect( options[:host], options[:port], EventMachine::WebSocket::ClientConnection, options) do |ws|
+        ws.onmessage{ |msg, type| 
+          msg.should == 'hello'
+          type.should == :text
+          EM.stop
+        }
+        
+        EventMachine::add_timer 3 do
+          failed # ran out of time
+        end
+      end
+    end
+  end
+
 end

@@ -44,8 +44,12 @@ module EventMachine
       end
 
       def client_handle_server_handshake_response(data)
+        handshake, msg = data.split "\r\n\r\n"
         @state = :connected #TODO - some actual logic would be nice
         @connection.trigger_on_open
+        if msg # handle message bundled in with handshake response
+          receive_data(msg)
+        end
       end
     end
   end
