@@ -30,8 +30,12 @@ module EventMachine
 
       def getbytes(start_index, count)
         data = ''
-        count.times do |i|
-          data << getbyte(start_index + i)
+        if @masking_key
+          count.times do |i|
+            data << getbyte(start_index + i)
+          end
+        else
+          data = String.new(self[start_index..start_index+count])
         end
         data
       end
