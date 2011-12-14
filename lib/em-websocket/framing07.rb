@@ -4,9 +4,13 @@ module EventMachine
   module WebSocket
     module Framing07
       
+      attr_accessor :mask_outbound_messages, :require_masked_inbound_messages
+
       def initialize_framing
         @data = MaskedString.new
         @application_data_buffer = '' # Used for MORE frames
+        @mask_outbound_messages = false
+        @require_masked_inbound_messages = true
       end
       
       def process_data(newdata)
@@ -24,7 +28,9 @@ module EventMachine
           length = @data.getbyte(pointer) & 0b01111111
           pointer += 1
 
-          # raise WebSocketError, 'Data from client must be masked' unless mask
+          if require_masked_inbound_messages
+            raise WebSocketError, 'Data from client must be masked' unless mask
+          end
 
           payload_length = case length
           when 127 # Length defined by 8 bytes
@@ -118,19 +124,24 @@ module EventMachine
         byte1 = opcode | 0b10000000 # fin bit set, rsv1-3 are 0
         frame << byte1
 
+        mask = mask_outbound_messages ? 0b10000000 : 0b00000000 # must be masked if from client
         length = application_data.size
         if length <= 125
           byte2 = length # since rsv4 is 0
-          frame << byte2
+          frame << (mask | byte2)
         elsif length < 65536 # write 2 byte length
-          frame << 126
+          frame << (mask | 126)
           frame << [length].pack('n')
         else # write 8 byte length
-          frame << 127
+          frame << (mask | 127)
           frame << [length >> 32, length & 0xFFFFFFFF].pack("NN")
         end
 
-        frame << application_data
+        if mask_outbound_messages
+          frame << MaskedString.create_masked_string(application_data)
+        else
+          frame << application_data
+        end
 
         @connection.send_data(frame)
       end

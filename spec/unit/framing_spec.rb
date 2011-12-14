@@ -8,7 +8,7 @@ describe EM::WebSocket::Framing03 do
       @data << data
       process_data(data)
     end
-    
+
     def debug(*args); end
   end
   
@@ -199,59 +199,127 @@ describe EM::WebSocket::Framing07 do
 
   # These examples are straight from the spec
   # http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-07#section-4.6
-  describe "examples from the spec" do
-    it "a single-frame unmakedtext message" do
-      @f.should_receive(:message).with(:text, '', 'Hello')
-      @f << "\x81\x05\x48\x65\x6c\x6c\x6f" # "\x84\x05Hello"
+  # NOTE I modified these to be compliant with the rule that client data must be masked
+  describe "server side" do
+    describe "examples from the spec" do
+      it "rejects a single-frame unmasked text message from the client" do
+        lambda {
+          @f << "\x81\x05\x48\x65\x6c\x6c\x6f" # "\x84\x05Hello"
+        }.should raise_error(EventMachine::WebSocket::WebSocketError, 'Data from client must be masked')
+      end
+
+      it "a single-frame masked text message" do
+        @f.should_receive(:message).with(:text, '', 'Hello')
+        @f << "\x81\x85\x37\xfa\x21\x3d\x7f\x9f\x4d\x51\x58" # "\x84\x05Hello"
+      end
+
+      it "a fragmented masked text message" do
+        @f.should_receive(:message).with(:text, '', 'Hello')
+        @f << "\x01\x83\x01\x01\x01\x01Idm" # with mask x01x01x01x01, Hello -> Idmmn
+        @f << "\x80\x82\x01\x01\x01\x01mn"
+      end
+
+      it "Ping request" do
+        @f.should_receive(:message).with(:ping, '', 'Hello')
+        @f << "\x89\x85\x01\x01\x01\x01Idmmn"
+      end
+
+      it "a pong response" do
+        @f.should_receive(:message).with(:pong, '', 'Hello')
+        @f << "\x8a\x85\x01\x01\x01\x01Idmmn"
+      end
+
+      it "256 bytes binary message in a single masked frame" do
+        data = "b"*256
+        masked_data = "c"*256
+        @f.should_receive(:message).with(:binary, '', data)
+        @f << "\x82\xFE\x01\x00\x01\x01\x01\x01" + masked_data
+      end
+
+      it "64KiB binary message in a single masked frame" do
+        data = "b"*65536
+        masked_data = "c"*65536
+        @f.should_receive(:message).with(:binary, '', data)
+        @f << "\x82\xFF\x00\x00\x00\x00\x00\x01\x00\x00\x01\x01\x01\x01" + masked_data
+      end
     end
 
-    it "a single-frame masked text message" do
-      @f.should_receive(:message).with(:text, '', 'Hello')
-      @f << "\x81\x85\x37\xfa\x21\x3d\x7f\x9f\x4d\x51\x58" # "\x84\x05Hello"
-    end
+    describe "other tests" do
+      it "should raise a DataError if an invalid frame type is requested" do
+        lambda {
+          # Opcode 3 is not supported by this draft
+          @f << "\x83\x85\x01\x01\x01\x01Idmmn"
+        }.should raise_error(EventMachine::WebSocket::DataError, "Unknown opcode")
+      end
 
-    it "a fragmented unmasked text message" do
-      @f.should_receive(:message).with(:text, '', 'Hello')
-      @f << "\x01\x03Hel"
-      @f << "\x80\x02lo"
-    end
-
-    it "Ping request" do
-      @f.should_receive(:message).with(:ping, '', 'Hello')
-      @f << "\x89\x05Hello"
-    end
-
-    it "a pong response" do
-      @f.should_receive(:message).with(:pong, '', 'Hello')
-      @f << "\x8a\x05Hello"
-    end
-
-    it "256 bytes binary message in a single unmasked frame" do
-      data = "a"*256
-      @f.should_receive(:message).with(:binary, '', data)
-      @f << "\x82\x7E\x01\x00" + data
-    end
-
-    it "64KiB binary message in a single unmasked frame" do
-      data = "a"*65536
-      @f.should_receive(:message).with(:binary, '', data)
-      @f << "\x82\x7F\x00\x00\x00\x00\x00\x01\x00\x00" + data
+      it "should accept a fragmented masked text message in 3 frames" do
+        @f.should_receive(:message).with(:text, '', 'Hello world')
+        @f << "\x01\x83\x01\x01\x01\x01Idm"
+        @f << "\x00\x82\x01\x01\x01\x01mn"
+        @f << "\x80\x86\x01\x01\x01\x01\x21vnsme"
+      end
     end
   end
 
-  describe "other tests" do
-    it "should raise a DataError if an invalid frame type is requested" do
-      lambda {
-        # Opcode 3 is not supported by this draft
-        @f << "\x83\x05Hello"
-      }.should raise_error(EventMachine::WebSocket::DataError, "Unknown opcode")
+  describe "client side" do
+    before do
+      @f.mask_outbound_messages = true
+      @f.require_masked_inbound_messages = false
+    end
+    describe "examples from the spec" do
+      it "accepts a single-frame unmasked text message from the client" do
+        @f.should_receive(:message).with(:text, '', 'Hello')
+        @f << "\x81\x05\x48\x65\x6c\x6c\x6f" # "\x84\x05Hello"
+      end
+
+      it "a single-frame masked text message" do
+        @f.should_receive(:message).with(:text, '', 'Hello')
+        @f << "\x81\x85\x37\xfa\x21\x3d\x7f\x9f\x4d\x51\x58" # "\x84\x05Hello"
+      end
+
+      it "a fragmented unmasked text message" do
+        @f.should_receive(:message).with(:text, '', 'Hello')
+        @f << "\x01\x03\Hel"
+        @f << "\x80\x02\lo"
+      end
+
+      it "Ping request" do
+        @f.should_receive(:message).with(:ping, '', 'Hello')
+        @f << "\x89\x05Hello"
+      end
+
+      it "a pong response" do
+        @f.should_receive(:message).with(:pong, '', 'Hello')
+        @f << "\x8a\x05Hello"
+      end
+
+      it "256 bytes binary message in a single unmasked frame" do
+        data = "a"*256
+        @f.should_receive(:message).with(:binary, '', data)
+        @f << "\x82\x7E\x01\x00" + data
+      end
+
+      it "64KiB binary message in a single unmasked frame" do
+        data = "a"*65536
+        @f.should_receive(:message).with(:binary, '', data)
+        @f << "\x82\x7F\x00\x00\x00\x00\x00\x01\x00\x00" + data
+      end
     end
 
-    it "should accept a fragmented unmasked text message in 3 frames" do
-      @f.should_receive(:message).with(:text, '', 'Hello world')
-      @f << "\x01\x03Hel"
-      @f << "\x00\x02lo"
-      @f << "\x80\x06 world"
+    describe "other tests" do
+      it "should raise a DataError if an invalid frame type is requested" do
+        lambda {
+          # Opcode 3 is not supported by this draft
+          @f << "\x83\x05Hello"
+        }.should raise_error(EventMachine::WebSocket::DataError, "Unknown opcode")
+      end
+
+      it "should accept a fragmented unmasked text message in 3 frames" do
+        @f.should_receive(:message).with(:text, '', 'Hello world')
+        @f << "\x01\x03Hel"
+        @f << "\x00\x02lo"
+        @f << "\x80\x06 world"
+      end
     end
   end
 end

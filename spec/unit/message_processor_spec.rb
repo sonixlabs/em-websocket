@@ -9,6 +9,7 @@ describe EM::WebSocket::MessageProcessor06 do
   
   before :each do
     @mp = MessageProcessorContainer06.new
+    @mp.connection = Object.new
   end
   
   describe "#message" do

@@ -19,6 +19,8 @@ module EventMachine
       end
 
       def run_client
+        self.mask_outbound_messages = true
+        self.require_masked_inbound_messages = false
         @connection.send_data handshake_client
       end
 

@@ -10,6 +10,25 @@ module EventMachine
         @masking_key = String.new(self[0..3])
       end
 
+      def self.create_mask
+        MaskedString.new "rAnD" #TODO make random 4 character string
+      end
+
+      def self.create_masked_string(original)
+        masked_string = MaskedString.new
+        masking_key = self.create_mask
+        masked_string << masking_key
+        original.size.times do |i|
+          char = original.getbyte(i)
+          masked_string << (char ^ masking_key.getbyte(i%4))
+        end
+        if masked_string.respond_to?(:force_encoding)
+          masked_string.force_encoding("ASCII-8BIT")
+        end
+        masked_string.read_mask # get input string
+        return masked_string
+      end
+
       # Removes the mask, behaves like a normal string again
       def unset_mask
         @masking_key = nil
