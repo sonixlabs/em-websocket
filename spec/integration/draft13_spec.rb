@@ -1,5 +1,6 @@
 require 'helper'
 require 'integration/shared_examples'
+require 'integration/client_examples'
 
 describe "draft13" do
   include EM::SpecHelper
@@ -62,4 +63,13 @@ describe "draft13" do
       end
     }
   end
+
+  it_should_behave_like "a websocket client" do
+    def start_server
+      EM::WebSocket.start(:host => "0.0.0.0", :port => 12345) { |ws|
+        yield ws
+      }
+    end
+  end
+
 end

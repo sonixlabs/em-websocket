@@ -76,19 +76,21 @@ class Draft07FakeWebSocketClient < FakeWebSocketClient
     byte1 = opcode | 0b10000000 # since more, rsv1-3 are 0
     frame << byte1
 
+    mask = 0b10000000
+
     length = application_data.size
     if length <= 125
       byte2 = length # since rsv4 is 0
-      frame << byte2
+      frame << (mask | byte2)
     elsif length < 65536 # write 2 byte length
-      frame << 126
+      frame << (mask | 126)
       frame << [length].pack('n')
     else # write 8 byte length
-      frame << 127
+      frame << (mask | 127)
       frame << [length >> 32, length & 0xFFFFFFFF].pack("NN")
     end
 
-    frame << application_data
+    frame << EventMachine::WebSocket::MaskedString.create_masked_string(application_data)
 
     send_data(frame)
   end
