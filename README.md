@@ -1,6 +1,6 @@
 # EM-WebSocket
 
-EventMachine based, async, Ruby WebSocket server. Take a look at examples directory, or check out the blog post below:
+EventMachine based, async, Ruby WebSocket server and client. Take a look at examples directory, or check out the blog post below:
 
 * [Ruby & Websockets: TCP for the Web](http://www.igvita.com/2009/12/22/ruby-websockets-tcp-for-the-browser/)
 
@@ -9,7 +9,7 @@ EventMachine based, async, Ruby WebSocket server. Take a look at examples direct
 ```ruby
 EventMachine.run {
 
-    EventMachine::WebSocket.start(:host => "0.0.0.0", :port => 8080) do |ws|
+    EventMachine::WebSocket.start_ws_server(:host => "0.0.0.0", :port => 8080) do |ws|
         ws.onopen {
           puts "WebSocket connection open"
 
@@ -21,6 +21,27 @@ EventMachine.run {
         ws.onmessage { |msg|
           puts "Recieved message: #{msg}"
           ws.send "Pong: #{msg}"
+        }
+    end
+}
+```
+
+## Simple client example
+
+```ruby
+EventMachine.run {
+
+    EventMachine::WebSocket.start_ws_client(:host => "echo.websocket.org", :port => 80) do |ws|
+        ws.onopen {
+          puts "WebSocket client connection open"
+
+          # publish message to the server
+          ws.send "Hello server", :text
+        }
+
+        ws.onclose { puts "Connection closed" }
+        ws.onmessage{ |msg, type|
+          puts "Received message: #{msg}"
         }
     end
 }
