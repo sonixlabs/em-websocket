@@ -3,16 +3,14 @@ $:.push File.expand_path("../lib", __FILE__)
 require "em-websocket/version"
 
 Gem::Specification.new do |s|
-  s.name        = "em-websocket"
+  s.name        = "sonixlabs-em-websocket"
   s.version     = EventMachine::Websocket::VERSION
   s.platform    = Gem::Platform::RUBY
-  s.authors     = ["Ilya Grigorik", "Martyn Loughran"]
-  s.email       = ["ilya@igvita.com", "me@mloughran.com"]
-  s.homepage    = "http://github.com/igrigorik/em-websocket"
+  s.authors     = ["Kazuhiro Yamada"]
+  s.email       = ["sonixlabs@sonix.asia", "kyamada@sonix.asia"]
+  s.homepage    = "https://github.com/sonixlabs/em-websocket"
   s.summary     = %q{EventMachine based WebSocket server}
   s.description = %q{EventMachine based WebSocket server}
-
-  s.rubyforge_project = "em-websocket"
 
   s.files         = `git ls-files`.split("\n")
   s.test_files    = `git ls-files -- {test,spec,features}/*`.split("\n")
