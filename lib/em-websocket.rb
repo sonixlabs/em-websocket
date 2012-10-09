@@ -1,6 +1,6 @@
 $:.unshift(File.dirname(__FILE__) + '/../lib')
 
-require "eventmachine"
+require "sonixlabs-eventmachine-java"
 
 %w[
   debugger websocket connection client_connection
