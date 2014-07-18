@@ -4,16 +4,13 @@ module EventMachine
   module WebSocket
     module Framing07
       
-      attr_accessor :mask_outbound_messages, :require_masked_inbound_messages
-
       def initialize_framing
         @data = MaskedString.new
         @application_data_buffer = '' # Used for MORE frames
-        @mask_outbound_messages = false
-        @require_masked_inbound_messages = true
+        @frame_type = nil
       end
       
-      def process_data(newdata)
+      def process_data
         error = false
 
         while !error && @data.size >= 2
@@ -28,9 +25,7 @@ module EventMachine
           length = @data.getbyte(pointer) & 0b01111111
           pointer += 1
 
-          if require_masked_inbound_messages
-            raise WebSocketError, 'Data from client must be masked' unless mask
-          end
+          # raise WebSocketError, 'Data from client must be masked' unless mask
 
           payload_length = case length
           when 127 # Length defined by 8 bytes
@@ -65,6 +60,10 @@ module EventMachine
           frame_length = pointer + payload_length
           frame_length += 4 if mask
 
+          if frame_length > @connection.max_frame_size
+            raise WSMessageTooBigError, "Frame length too long (#{frame_length} bytes)"
+          end
+
           # Check buffer size
           if @data.getbyte(frame_length - 1) == nil
             debug [:buffer_incomplete, @data]
@@ -88,8 +87,19 @@ module EventMachine
 
           frame_type = opcode_to_type(opcode)
 
-          if frame_type == :continuation && !@frame_type
-            raise WebSocketError, 'Continuation frame not expected'
+          if frame_type == :continuation
+            if !@frame_type
+              raise WSProtocolError, 'Continuation frame not expected'
+            end
+          else # Not a continuation frame
+            if @frame_type && data_frame?(frame_type)
+              raise WSProtocolError, "Continuation frame expected"
+            end
+          end
+
+          # Validate that control frames are not fragmented
+          if !fin && !data_frame?(frame_type)
+            raise WSProtocolError, 'Control frames must not be fragmented'
           end
 
           if !fin
@@ -124,24 +134,19 @@ module EventMachine
         byte1 = opcode | 0b10000000 # fin bit set, rsv1-3 are 0
         frame << byte1
 
-        mask = mask_outbound_messages ? 0b10000000 : 0b00000000 # must be masked if from client
         length = application_data.size
         if length <= 125
           byte2 = length # since rsv4 is 0
-          frame << (mask | byte2)
+          frame << byte2
         elsif length < 65536 # write 2 byte length
-          frame << (mask | 126)
+          frame << 126
           frame << [length].pack('n')
         else # write 8 byte length
-          frame << (mask | 127)
+          frame << 127
           frame << [length >> 32, length & 0xFFFFFFFF].pack("NN")
         end
 
-        if mask_outbound_messages
-          frame << MaskedString.create_masked_string(application_data)
-        else
-          frame << application_data
-        end
+        frame << application_data
 
         @connection.send_data(frame)
       end
@@ -169,7 +174,7 @@ module EventMachine
       end
 
       def opcode_to_type(opcode)
-        FRAME_TYPES_INVERSE[opcode] || raise(DataError, "Unknown opcode")
+        FRAME_TYPES_INVERSE[opcode] || raise(WSProtocolError, "Unknown opcode #{opcode}")
       end
 
       def data_frame?(type)

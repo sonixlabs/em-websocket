@@ -1,13 +1,58 @@
 # EM-WebSocket
 
+<<<<<<< HEAD
+EventMachine based, async, Ruby WebSocket server and client. Take a look at examples directory, or check out the blog post below:
+=======
 [![Gem Version](https://badge.fury.io/rb/em-websocket.png)](http://rubygems.org/gems/em-websocket)
 [![Analytics](https://ga-beacon.appspot.com/UA-71196-10/em-websocket/readme)](https://github.com/igrigorik/ga-beacon)
+>>>>>>> upstream/master
 
 EventMachine based, async, Ruby WebSocket server. Take a look at examples directory, or check out the blog post: [Ruby & Websockets: TCP for the Web](http://www.igvita.com/2009/12/22/ruby-websockets-tcp-for-the-browser/).
 
 ## Simple server example
 
 ```ruby
+<<<<<<< HEAD
+EventMachine.run {
+
+    EventMachine::WebSocket.start_ws_server(:host => "0.0.0.0", :port => 8080) do |ws|
+        ws.onopen {
+          puts "WebSocket connection open"
+
+          # publish message to the client
+          ws.send "Hello Client"
+        }
+
+        ws.onclose { puts "Connection closed" }
+        ws.onmessage { |msg|
+          puts "Recieved message: #{msg}"
+          ws.send "Pong: #{msg}"
+        }
+    end
+}
+```
+
+## Simple client example
+
+```ruby
+EventMachine.run {
+
+    EventMachine::WebSocket.start_ws_client(:host => "echo.websocket.org", :port => 80) do |ws|
+        ws.onopen {
+          puts "WebSocket client connection open"
+
+          # publish message to the server
+          ws.send "Hello server", :text
+        }
+
+        ws.onclose { puts "Connection closed" }
+        ws.onmessage{ |msg, type|
+          puts "Received message: #{msg}"
+        }
+    end
+}
+```
+=======
 require 'em-websocket'
 
 EM.run {
@@ -70,6 +115,7 @@ If unsure use a code in the 4xxx range. em-websocket may also close a connection
 
 * 1002: WebSocket protocol error.
 * 1009: Message too big to process. By default em-websocket will accept frames up to 10MB in size. If a frame is larger than this the connection will be closed without reading the frame data. The limit can be overriden globally (`EM::WebSocket.max_frame_size = bytes`) or on a specific connection (`ws.max_frame_size = bytes`).
+>>>>>>> upstream/master
 
 ## Secure server
 
@@ -140,3 +186,10 @@ Using flash emulation does require some minimal support from em-websocket which 
 * [Twitter AMQP WebSocket Example](http://github.com/rubenfonseca/twitter-amqp-websocket-example)
 * examples/multicast.rb - broadcast all ruby tweets to all subscribers
 * examples/echo.rb - server <> client exchange via a websocket
+<<<<<<< HEAD
+
+# License
+
+The MIT License - Copyright (c) 2009 Ilya Grigorik
+=======
+>>>>>>> upstream/master

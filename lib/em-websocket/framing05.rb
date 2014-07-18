@@ -3,17 +3,13 @@
 module EventMachine
   module WebSocket
     module Framing05
-      
-      # Set the max frame lenth to very high value (10MB) until there is a
-      # limit specified in the spec to protect against malicious attacks
-      MAXIMUM_FRAME_LENGTH = 10 * 1024 * 1024
-      
       def initialize_framing
         @data = MaskedString.new
         @application_data_buffer = '' # Used for MORE frames
+        @frame_type = nil
       end
       
-      def process_data(newdata)
+      def process_data
         error = false
 
         while !error && @data.size > 5 # mask plus first byte present
@@ -60,9 +56,8 @@ module EventMachine
             length
           end
 
-          # Addition to the spec to protect against malicious requests
-          if payload_length > MAXIMUM_FRAME_LENGTH
-            raise DataError, "Frame length too long (#{payload_length} bytes)"
+          if payload_length > @connection.max_frame_size
+            raise WSMessageTooBigError, "Frame length too long (#{payload_length} bytes)"
           end
 
           # Check buffer size
@@ -83,7 +78,7 @@ module EventMachine
           frame_type = opcode_to_type(opcode)
 
           if frame_type == :continuation && !@frame_type
-            raise WebSocketError, 'Continuation frame not expected'
+            raise WSProtocolError, 'Continuation frame not expected'
           end
 
           if !fin
@@ -157,7 +152,7 @@ module EventMachine
       end
 
       def opcode_to_type(opcode)
-        FRAME_TYPES_INVERSE[opcode] || raise(DataError, "Unknown opcode")
+        FRAME_TYPES_INVERSE[opcode] || raise(WSProtocolError, "Unknown opcode #{opcode}")
       end
 
       def data_frame?(type)

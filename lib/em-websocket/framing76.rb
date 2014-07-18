@@ -3,16 +3,11 @@
 module EventMachine
   module WebSocket
     module Framing76
-      
-      # Set the max frame lenth to very high value (10MB) until there is a
-      # limit specified in the spec to protect against malicious attacks
-      MAXIMUM_FRAME_LENGTH = 10 * 1024 * 1024
-      
       def initialize_framing
         @data = ''
       end
       
-      def process_data(newdata)
+      def process_data
         debug [:message, @data]
 
         # This algorithm comes straight from the spec
@@ -40,9 +35,8 @@ module EventMachine
               break unless (b & 0x80) == 0x80
             end
 
-            # Addition to the spec to protect against malicious requests
-            if length > MAXIMUM_FRAME_LENGTH
-              raise DataError, "Frame length too long (#{length} bytes)"
+            if length > @connection.max_frame_size
+              raise WSMessageTooBigError, "Frame length too long (#{length} bytes)"
             end
 
             if @data.getbyte(pointer+length-1) == nil
@@ -69,16 +63,13 @@ module EventMachine
 
             if @data.getbyte(0) != 0x00
               # Close the connection since this buffer can never match
-              raise DataError, "Invalid frame received"
+              raise WSProtocolError, "Invalid frame received"
             end
 
             # Addition to the spec to protect against malicious requests
-            if @data.size > MAXIMUM_FRAME_LENGTH
-              raise DataError, "Frame length too long (#{@data.size} bytes)"
+            if @data.size > @connection.max_frame_size
+              raise WSMessageTooBigError, "Frame length too long (#{@data.size} bytes)"
             end
-
-            # Optimization to avoid calling slice! unnecessarily
-            error = true and next unless newdata =~ /\xff/
 
             msg = @data.slice!(/\A\x00[^\xff]*\xff/)
             if msg

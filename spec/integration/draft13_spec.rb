@@ -1,6 +1,6 @@
+# encoding: BINARY
+
 require 'helper'
-require 'integration/shared_examples'
-require 'integration/client_examples'
 
 describe "draft13" do
   include EM::SpecHelper
@@ -28,48 +28,78 @@ describe "draft13" do
         "Upgrade" => "websocket",
         "Connection" => "Upgrade",
         "Sec-WebSocket-Accept" => "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=",
+        "Sec-WebSocket-Protocol" => "sample",
       }
     }
   end
 
-  it_behaves_like "a websocket server" do
-    def start_server
-      EM::WebSocket.start(:host => "0.0.0.0", :port => 12345) { |ws|
-        yield ws
-      }
-    end
+  def start_client
+    client = EM.connect('0.0.0.0', 12345, Draft07FakeWebSocketClient)
+    client.send_data(format_request(@request))
+    yield client if block_given?
+    return client
+  end
 
-    def start_client
-      client = EM.connect('0.0.0.0', 12345, Draft07FakeWebSocketClient)
-      client.send_data(format_request(@request))
-      yield client if block_given?
-    end
+  it_behaves_like "a websocket server" do
+    let(:version) { 13 }
+  end
+
+  it_behaves_like "a WebSocket server drafts 3 and above" do
+    let(:version) { 13 }
   end
 
   it "should send back the correct handshake response" do
     em {
-      EM.add_timer(0.1) do
-        EventMachine::WebSocket.start(:host => "0.0.0.0", :port => 12345) { }
-        
-        # Create a fake client which sends draft 07 handshake
-        connection = EM.connect('0.0.0.0', 12345, Draft07FakeWebSocketClient)
-        connection.send_data(format_request(@request))
-        
-        connection.onopen {
-          connection.handshake_response.lines.sort.
-            should == format_response(@response).lines.sort
-          done
-        }
-      end
+      start_server
+
+      connection = start_client
+
+      connection.onopen {
+        connection.handshake_response.lines.sort.
+          should == format_response(@response).lines.sort
+        done
+      }
     }
   end
 
-  it_should_behave_like "a websocket client" do
-    def start_server
-      EM::WebSocket.start(:host => "0.0.0.0", :port => 12345) { |ws|
-        yield ws
+  # TODO: This test would be much nicer with a real websocket client...
+  it "should support sending pings and binding to onpong" do
+    em {
+      start_server { |ws|
+        ws.onopen {
+          ws.should be_pingable
+          EM.next_tick {
+            ws.ping('hello').should == true
+          }
+
+        }
+        ws.onpong { |data|
+          data.should == 'hello'
+          done
+        }
       }
-    end
+
+      connection = start_client
+
+      # Confusing, fake onmessage means any data after the handshake
+      connection.onmessage { |data|
+        # This is what a ping looks like
+        data.should == "\x89\x05hello"
+        # This is what a pong looks like
+        connection.send_data("\x8a\x05hello")
+      }
+    }
   end
 
+  it "should report that close codes are supported" do
+    em {
+      start_server { |ws|
+        ws.onopen {
+          ws.supports_close_codes?.should == true
+          done
+        }
+      }
+      start_client
+    }
+  end
 end
